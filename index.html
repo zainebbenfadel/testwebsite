@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Buddy 🌟</title>
+    <style>
+        /* Same CSS as before—no changes needed here */
+        :root {
+            --primary-color: #f0f0f0;
+            --secondary-color: #333;
+            --text-color: #333;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial Rounded MT Bold', 'Comic Sans MS', sans-serif;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: var(--text-color);
+            transition: all 0.5s ease;
+            padding: 20px;
+        }
+        .mood-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .mood-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .mood-btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .mood-btn:hover {
+            transform: scale(1.1);
+        }
+        .character-container {
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            position: relative;
+            display: none; /* Hidden by default */
+        }
+        .character {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensures GIF fits without distortion */
+            transition: transform 0.3s ease;
+            border-radius: 15px;
+        }
+        .quote-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none; /* Hidden by default */
+        }
+        .quote-text {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .hug-btn {
+            padding: 10px 20px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .hug-btn:hover {
+            transform: scale(1.05);
+        }
+        @media (max-width: 480px) {
+            .mood-buttons { flex-direction: column; }
+            .character-container { width: 250px; height: 250px; }
+            .quote-text { font-size: 1rem; }
+        }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        @keyframes hug { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .bounce { animation: bounce 0.5s ease; }
+        .hugged { animation: hug 0.5s ease; }
+        .loading-text {
+            color: white;
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mood-container">
+        <h1>How are you feeling today? 🌟</h1>
+        <p>Pick a mood to get started!</p>
+        <div class="mood-buttons">
+            <button class="mood-btn" data-mood="happy">😊 Happy</button>
+            <button class="mood-btn" data-mood="sad">😢 Sad</button>
+            <button class="mood-btn" data-mood="stressed">😩 Stressed</button>
+            <button class="mood-btn" data-mood="excited">🎉 Excited</button>
+        </div>
+    </div>
+
+    <div class="character-container">
+        <img class="character" alt="Mood character">
+    </div>
+
+    <div class="quote-container">
+        <p class="quote-text"></p>
+    </div>
+
+    <script>
+        // Verified GIF links (tested to work)
+        const moodData = {
+            happy: {
+                character: "https://media.giphy.com/media/l0MYC0LajbaPoEADu/giphy.gif",
+                quote: "Happiness is not something ready made. It comes from your own actions. - Dalai Lama",
+                color: "#FFF3CD"
+            },
+            sad: {
+                character: "https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif",
+                quote: "Sadness is just a passing phase. It doesn't define you. - Karen Salmansohn",
+                color: "#F8D7DA"
+            },
+            stressed: {
+                character: "https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif",
+                quote: "Stress is not about what happens to you, but how you react to it. - Stefan Sagmeister",
+                color: "#D4EDDA"
+            },
+            excited: {
+                character: "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif",
+                quote: "The best way to predict your future is to create it. - Peter Drucker",
+                color: "#CFE2FF"
+            }
+        };
+
+        // Elements
+        const moodButtons = document.querySelectorAll('.mood-btn');
+        const characterContainer = document.querySelector('.character-container');
+        const characterImg = document.querySelector('.character');
+        const quoteContainer = document.querySelector('.quote-container');
+        const quoteText = document.querySelector('.quote-text');
+        const body = document.body;
+
+        // Preload GIFs to check if they load
+        function preloadGif(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = url;
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(`Failed to load GIF: ${url}`);
+            });
+        }
+
+        // Update mood (with preloading and error handling)
+        async function updateMood(mood) {
+            const data = moodData[mood];
+            
+            // Update colors
+            document.documentElement.style.setProperty('--primary-color', data.color);
+            document.documentElement.style.setProperty('--text-color', '#333');
+            
+            // Show loading message
+            characterContainer.style.display = 'block';
+            characterImg.style.opacity = '0.5'; // Dim character while loading
+            quoteContainer.style.display = 'none';
+            const loadingText = document.createElement('div');
+            loadingText.className = 'loading-text';
+            loadingText.textContent = 'Loading character...';
+            characterContainer.appendChild(loadingText);
+
+            try {
+                // Preload GIF and update once loaded
+                await preloadGif(data.character);
+                characterImg.src = data.character;
+                characterImg.style.opacity = '1'; // Fade in once loaded
+                loadingText.remove(); // Remove loading message
+            } catch (error) {
+                // Fallback to placeholder if GIF fails
+                characterImg.src = "https://via.placeholder.com/300x300?text=Character+Not+Found";
+                characterImg.alt = "Character unavailable";
+                loadingText.textContent = 'Oops, the character couldn’t load. 😔';
+            }
+
+            // Update quote
+            quoteText.textContent = data.quote;
+            quoteContainer.style.display = 'block';
+
+            // Play sound (optional)
+            const sound = new Audio("https://assets.mixkit.co/active_storage/sfx/2951/2951-preview.mp3");
+            sound.play().catch(() => {}); // Ignore autoplay errors
+
+            // Add animations
+            characterImg.classList.add('bounce');
+            quoteContainer.classList.add('bounce');
+            setTimeout(() => {
+                characterImg.classList.remove('bounce');
+                quoteContainer.classList.remove('bounce');
+            }, 500);
+        }
+
+        // Event listeners
+        moodButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const mood = button.dataset.mood;
+                updateMood(mood);
+            });
+        });
+    </script>
+</body>
+</html>
